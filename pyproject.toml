@@ -15,14 +15,12 @@ dependencies = [
     "openai==0.28",
     "anthropic>=2.8,<3",
     "wikipedia",
+    "pydantic<2",
+    "procoder @ git+https://github.com/dhh1995/PromptCoder@87155427e93f6ab95dbd658d7f500c2cedc05af6",
 ]
 
 [dependency-groups]
 dev = ["black"]
 
-[project.scripts]
-refineact = "refineact:main"
-
-[build-system]
-requires = ["uv_build>=0.13.1,<0.14.0"]
-build-backend = "uv_build"
+[tool.uv]
+package = false

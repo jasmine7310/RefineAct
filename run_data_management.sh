@@ -3,9 +3,10 @@
 # Run ToolEmu for data management category cases.
 # Usage: ./run_data_management.sh [--verified] [--trunc-num NUM] [--model NAME]
 # --model sets the agent, simulator and evaluator model, e.g. claude-opus-5-5.
+# Without it, models come from the REFINEACT_* environment variables (see .env.example).
 
 VERIFIED_FLAG=""
-MODEL="gpt-4o-mini-2024-07-18"
+MODEL_ARGS=()
 TRUNC_NUM="41"
 
 while [[ $# -gt 0 ]]; do
@@ -19,7 +20,7 @@ while [[ $# -gt 0 ]]; do
             shift 2
             ;;
         --model)
-            MODEL="$2"
+            MODEL_ARGS=(--agent-model-name "$2" --simulator-model-name "$2" --evaluator-model-name "$2")
             shift 2
             ;;
         *)
@@ -34,9 +35,7 @@ python scripts/run.py \
     --input-path assets/category/data_management_cases_formal.json \
     --trunc-num "$TRUNC_NUM" \
     --auto \
-    --agent-model-name "$MODEL" \
-    --simulator-model-name "$MODEL" \
-    --evaluator-model-name "$MODEL" \
+    "${MODEL_ARGS[@]}" \
     --agent-type helpful_ss \
     --simulator-type adv_thought \
     $VERIFIED_FLAG

@@ -151,6 +151,21 @@ def resolve_provider(role: str, model_name: str) -> str:
     return provider
 
 
+def resolve_credentials(
+    role: str, model_name: str
+) -> tuple[str, Optional[str], Optional[str]]:
+    """Provider, API key and base URL for a role, from REFINEACT_* variables."""
+    provider = resolve_provider(role, model_name)
+    # A role on a different provider than the global one must not reuse the
+    # global key or URL, which belong to the global provider.
+    inherit = provider == resolve_provider("", model_name)
+    return (
+        provider,
+        role_env(role, "API_KEY", inherit),
+        role_env(role, "BASE_URL", inherit),
+    )
+
+
 def model_file_tag(model_name: str) -> str:
     """Model name made safe to embed in an output file name."""
     return model_name.replace("/", "_").replace(":", "_")
@@ -401,15 +416,12 @@ def load_openai_llm_with_args(args, prefix=None, fixed_version=True, **kwargs):
     model_name = get_model_name(
         getattr(args, f"{prefix}model_name"), fixed_version=fixed_version
     )
-    provider = resolve_provider(role, model_name)
-    # A role on a different provider than the global one must not reuse the
-    # global key or URL, which belong to the global provider.
-    inherit = provider == resolve_provider("", model_name)
+    provider, api_key, base_url = resolve_credentials(role, model_name)
     return load_openai_llm(
         model_name=model_name,
         provider=provider,
-        api_key=role_env(role, "API_KEY", inherit),
-        base_url=role_env(role, "BASE_URL", inherit),
+        api_key=api_key,
+        base_url=base_url,
         temperature=getattr(args, f"{prefix}temperature"),
         max_tokens=getattr(args, f"{prefix}max_tokens"),
         max_retries=getattr(args, f"{prefix}max_retries"),

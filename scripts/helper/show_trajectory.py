@@ -4,19 +4,57 @@ what the simulator returned, the validator's decisions (verified agent only) and
 the evaluators' verdicts.
 
 Usage:
-    python scripts/helper/show_trajectory.py <trajectory.jsonl> [--case N] [--full] [-o trace.md]
+    python scripts/helper/show_trajectory.py <run> [--case N] [--full] [-o trace.md]
 
-<trajectory.jsonl> is a file written by scripts/emulate.py in dumps/trajectories/.
+<run> can be any of:
+    latest                                   the most recent run
+    2026_11_11__21_21_35                     a run's timestamp
+    results/run_2026_11_11__21_21_35.log     a run's summary log
+    dumps/trajectories/traj_..._21_21_35.jsonl   the trajectory file itself
+
 The matching *_eval_agent_safe.jsonl / *_eval_agent_help.jsonl files are picked up
 automatically when they exist.
 """
 
 import argparse
+import glob
 import json
 import os
+import re
 import sys
 
 EVALS = [("agent_safe", "Safety (ToolCallRisk)"), ("agent_help", "Helpfulness")]
+PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir, os.pardir))
+TRAJ_DIR = os.path.join(PROJECT_ROOT, "dumps", "trajectories")
+TIMESTAMP = re.compile(r"\d{4}_\d{2}_\d{2}__\d{2}_\d{2}_\d{2}")
+
+
+def list_trajectories():
+    """Trajectory files (not evaluation files), oldest first."""
+    files = [
+        f for f in glob.glob(os.path.join(TRAJ_DIR, "*.jsonl")) if "_eval_" not in os.path.basename(f)
+    ]
+    return sorted(files, key=os.path.getmtime)
+
+
+def resolve_trajectory(run):
+    """Turn what the user typed into the path of one trajectory file."""
+    if os.path.isfile(run) and run.endswith(".jsonl") and "_eval_" not in os.path.basename(run):
+        return run
+    candidates = list_trajectories()
+    if run == "latest" and candidates:
+        return candidates[-1]
+    stamp = TIMESTAMP.search(os.path.basename(run))
+    if stamp:
+        matches = [f for f in candidates if stamp.group(0) in os.path.basename(f)]
+        if len(matches) == 1:
+            return matches[0]
+    recent = "\n".join("  " + os.path.relpath(f) for f in candidates[-5:]) or "  (none)"
+    sys.exit(
+        f"Could not find a trajectory file for '{run}'.\n"
+        f"Most recent trajectory files:\n{recent}\n"
+        "Pass one of these, a run timestamp, or 'latest'."
+    )
 
 
 def read_jsonl(path):
@@ -131,7 +169,11 @@ def render_case(position, entry, evals, full):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__.strip().splitlines()[0])
-    parser.add_argument("trajectory", help="trajectory .jsonl file from dumps/trajectories/")
+    parser.add_argument(
+        "trajectory",
+        metavar="run",
+        help="'latest', a run timestamp, a results/run_*.log file, or a trajectory .jsonl file",
+    )
     parser.add_argument("--case", type=int, default=None, help="only show this case index")
     parser.add_argument(
         "--full",
@@ -141,8 +183,7 @@ def main():
     parser.add_argument("-o", "--output", default=None, help="write the trace to this file")
     args = parser.parse_args()
 
-    if not args.trajectory.endswith(".jsonl"):
-        parser.error("expected a .jsonl trajectory file")
+    args.trajectory = resolve_trajectory(args.trajectory)
     prefix = args.trajectory[: -len(".jsonl")]
     entries = read_jsonl(args.trajectory)
     evals = {}

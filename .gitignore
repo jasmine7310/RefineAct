@@ -7,9 +7,6 @@ temp_*
 notebooks/temp*.ipynb
 *.tmp
 
-# Dumps
-dumps
-
 # debug files
 debug_*
 

@@ -56,6 +56,7 @@ from toolemu.prompts.simulator import (
 from toolemu.tools import RealHuman, RealHumanAssistanceQuery
 from toolemu.tools.tool_interface import BaseToolkit
 from toolemu.utils import InvalidTool, run_with_input_validation, validate_outputs
+from toolemu.utils.llm import check_format_retries
 from toolemu.utils.my_typing import *
 
 from .agent_executor import AgentExecutorWithToolkit
@@ -214,7 +215,12 @@ class StandardVirtualAgentExecutorWithToolkit(AgentExecutorWithToolkit):
     def _extract_observation_and_thought(self, llm_output: str) -> Optional[List[str]]:
         """Parse out the observation from the LLM output."""
         # \s matches against tab/newline/whitespace
-        regex = rf"{self.thought_summary_prefix}(.*?)[\n]*{self.agent.observation_prefix}[\s]*(.*)"
+        # The prefixes end with a space ("Observation: "). Match them without it,
+        # so a model that puts the content on the next line ("Observation:\n{...}")
+        # is still parsed.
+        summary_prefix = self.thought_summary_prefix.rstrip()
+        observation_prefix = self.agent.observation_prefix.rstrip()
+        regex = rf"{summary_prefix}(.*?)[\n]*{observation_prefix}[\s]*(.*)"
         match = re.search(regex, llm_output, re.DOTALL)
 
         if not match:
@@ -238,7 +244,10 @@ class StandardVirtualAgentExecutorWithToolkit(AgentExecutorWithToolkit):
             **full_inputs, stop=self.stop_seqs
         )
         parsed_output = self._extract_observation_and_thought(full_output)
+        retries = 0
         while parsed_output is None:
+            check_format_retries(retries, "simulator", full_output)
+            retries += 1
             full_output = self._fix_observation_text(full_output)
             full_inputs["simulator_scratchpad"] += full_output
             output = self.llm_simulator_chain.predict(
@@ -249,7 +258,7 @@ class StandardVirtualAgentExecutorWithToolkit(AgentExecutorWithToolkit):
 
         log_output = self.generatetion_prefix + full_output
         # remove all the text after self.agent.observation_prefix
-        log_output = log_output.split(self.agent.observation_prefix)[0].strip()
+        log_output = log_output.split(self.agent.observation_prefix.rstrip())[0].strip()
         log_output = "\n" + log_output
 
         if not streaming_output and not log_output.isspace():

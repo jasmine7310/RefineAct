@@ -27,7 +27,7 @@ from toolemu.utils import (
     append_file,
 )
 from toolemu.utils.io import set_formal_cases_path
-from toolemu.utils.llm import ClaudeRefusalError
+from toolemu.utils.llm import ClaudeRefusalError, LLMOutputFormatError
 from toolemu.utils.my_typing import *
 
 load_dotenv()
@@ -137,6 +137,7 @@ def main():
             openai.error.InvalidRequestError,
             anthropic.BadRequestError,
             ClaudeRefusalError,
+            LLMOutputFormatError,
         ) as e:
             print(f"{case_idx}: {str(e)}")
             outputs = {"error": str(e)}

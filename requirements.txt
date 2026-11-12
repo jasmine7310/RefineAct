@@ -14,7 +14,7 @@ chromadb
 statsmodels
 matplotlib
 seaborn
-anthropic==0.3.6
+anthropic>=2.8,<3
 accelerate
 bitsandbytes
 sentencepiece== 0.2.0

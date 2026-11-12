@@ -39,6 +39,22 @@ Each domain has a dedicated runner script that executes the full pipeline (emula
 |---|---|
 | `--verified` | Enables the verified agent variant that validates actions against the Prolog specification. |
 | `--trunc-num NUM` | Limits the number of test cases to run (defaults vary per domain). |
+| `--model NAME` | Model used for the agent, simulator and evaluators (default `gpt-4o-mini-2024-07-18`). |
+
+### Running with Claude
+
+Put `ANTHROPIC_API_KEY=<your-key>` in `.env` and pass a Claude model with `--model`:
+`claude-opus-5-5`, `claude-sonnet-5-5` or `claude-haiku-5-5`.
+
+```bash
+./run_communication.sh --model claude-opus-5-5 --trunc-num 1
+```
+
+Notes:
+
+- Claude runs do not send `temperature`, so they are not deterministic the way the GPT runs are.
+- If the API declines a request, that case is recorded as failed rather than scored.
+- `scripts/formalize_test_cases.py` still requires an OpenAI key; the shipped `*_formal.json` cases are already formalized.
 
 ### Example: Communication Domain
 

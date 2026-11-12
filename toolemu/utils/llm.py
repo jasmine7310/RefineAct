@@ -5,11 +5,11 @@ from langchain.callbacks.manager import (
     AsyncCallbackManagerForLLMRun,
     CallbackManagerForLLMRun,
 )
-from langchain.chat_models import ChatAnthropic as LangchainChatAnthropic
 from langchain.chat_models import ChatOpenAI as LangchainChatOpenAI
 from langchain.chat_models.base import BaseChatModel
 from langchain.chat_models.openai import convert_dict_to_message
 from langchain.llms import VLLM, OpenAI
+from langchain.pydantic_v1 import root_validator
 from langchain.schema import ChatGeneration, ChatResult
 from langchain.schema.messages import (
     AIMessage,
@@ -17,13 +17,6 @@ from langchain.schema.messages import (
     ChatMessage,
     HumanMessage,
     SystemMessage,
-)
-from tenacity import (
-    before_sleep_log,
-    retry,
-    retry_if_exception_type,
-    stop_after_attempt,
-    wait_exponential,
 )
 
 from .my_typing import *
@@ -33,8 +26,9 @@ MODEL_BASE_NAMES = [
     "gpt-4",
     "gpt-3.5-turbo",
     "gpt-3.5-turbo-16k",
-    "claude-1",
-    "claude-2",
+    "claude-opus-5-5",
+    "claude-sonnet-5-5",
+    "claude-haiku-5-5",
     "lmsys/vicuna-7b-v1.5-16k",
     "lmsys/vicuna-13b-v1.5-16k",
 ]
@@ -43,8 +37,9 @@ MODEL_SHORT_NAMES = [
     "gpt-4",
     "gpt-3.5",
     "gpt-3.5-16k",
-    "claude-1",
-    "claude-2",
+    "claude-opus-5-5",
+    "claude-sonnet-5-5",
+    "claude-haiku-5-5",
     "lmsys/vicuna-7b-v1.5-16k",
     "lmsys/vicuna-13b-v1.5-16k",
 ]
@@ -156,47 +151,69 @@ class ChatOpenAI(LangchainChatOpenAI):
 logger = logging.getLogger(__name__)
 
 
-def _anthropic_create_retry_decorator(llm: ChatOpenAI) -> Callable[[Any], Any]:
-    import anthropic
-
-    min_seconds = 1
-    max_seconds = 60
-    # Wait 2^x * 1 second between each retry starting with
-    # 4 seconds, then up to 10 seconds, then 10 seconds afterwards
-    return retry(
-        reraise=True,
-        stop=stop_after_attempt(llm.max_retries),
-        wait=wait_exponential(multiplier=1, min=min_seconds, max=max_seconds),
-        retry=(
-            retry_if_exception_type(anthropic.APITimeoutError)
-            | retry_if_exception_type(anthropic.APIError)
-            | retry_if_exception_type(anthropic.APIConnectionError)
-            | retry_if_exception_type(anthropic.RateLimitError)
-            | retry_if_exception_type(anthropic.APIConnectionError)
-            | retry_if_exception_type(anthropic.APIStatusError)
-            | retry_if_exception_type(anthropic.InternalServerError)
-        ),
-        before_sleep=before_sleep_log(logger, logging.WARNING),
-    )
+class ClaudeRefusalError(Exception):
+    """Raised when the Claude API declines a request (stop_reason == "refusal")."""
 
 
-class ChatAnthropic(LangchainChatAnthropic):
+# Default output cap for Claude. Thinking tokens count against it, so it is
+# deliberately higher than what the visible answer needs.
+CLAUDE_DEFAULT_MAX_TOKENS = 16000
+
+
+class ChatAnthropic(BaseChatModel):
+    """Claude chat model backed by the Anthropic Messages API.
+
+    Sampling parameters (temperature etc.) are not sent: current Claude models
+    reject them, so runs are not seeded/deterministic the way the GPT runs are.
+    """
+
+    client: Any = None  #: :meta private:
+    model: str = "claude-opus-5-5"
+    max_tokens: int = CLAUDE_DEFAULT_MAX_TOKENS
     max_retries: int = 6
-    max_tokens_to_sample: int = 4000
-    """Maximum number of retries to make when generating."""
+    """Retries for rate limits, timeouts and server errors (handled by the SDK)."""
+    request_timeout: Optional[float] = None
+    streaming: bool = False
+    """Kept for interface compatibility with ChatOpenAI; streaming is not used."""
 
-    def completion_with_retry(self, **kwargs: Any) -> Any:
-        """Use tenacity to retry the completion call."""
-        retry_decorator = _anthropic_create_retry_decorator(self)
+    @root_validator()
+    def _build_client(cls, values: Dict[str, Any]) -> Dict[str, Any]:
+        if values.get("client") is None:
+            import anthropic
 
-        @retry_decorator
-        def _completion_with_retry(**kwargs: Any) -> Any:
-            return self.client.completions.create(**kwargs)
+            client_kwargs: Dict[str, Any] = {"max_retries": values["max_retries"]}
+            if values.get("request_timeout") is not None:
+                client_kwargs["timeout"] = values["request_timeout"]
+            # Credentials are resolved by the SDK (ANTHROPIC_API_KEY, typically
+            # loaded from the project's .env file).
+            values["client"] = anthropic.Anthropic(**client_kwargs)
+        return values
 
-        return _completion_with_retry(**kwargs)
+    @property
+    def _llm_type(self) -> str:
+        return "anthropic-chat"
 
-    # note: we only rewrite the _generate method
-    # todo: rewrite the _agenerate method
+    @property
+    def _identifying_params(self) -> Dict[str, Any]:
+        return {"model": self.model, "max_tokens": self.max_tokens}
+
+    @staticmethod
+    def _convert_messages(
+        messages: List[BaseMessage],
+    ) -> Tuple[Optional[str], List[Dict[str, str]]]:
+        """Split LangChain messages into a system prompt and Messages API turns."""
+        system_parts = []
+        api_messages = []
+        for message in messages:
+            if isinstance(message, SystemMessage):
+                system_parts.append(message.content)
+            elif isinstance(message, AIMessage):
+                api_messages.append({"role": "assistant", "content": message.content})
+            else:  # HumanMessage and anything else is sent as the user
+                api_messages.append({"role": "user", "content": message.content})
+        system = "\n\n".join(system_parts) if system_parts else None
+        return system, api_messages
+
     def _generate(
         self,
         messages: List[BaseMessage],
@@ -204,41 +221,48 @@ class ChatAnthropic(LangchainChatAnthropic):
         run_manager: Optional[CallbackManagerForLLMRun] = None,
         **kwargs: Any,
     ) -> ChatResult:
-        prompt = self._convert_messages_to_prompt(messages)
-        params: Dict[str, Any] = {"prompt": prompt, **self._default_params, **kwargs}
+        system, api_messages = self._convert_messages(messages)
+        params: Dict[str, Any] = {
+            "model": self.model,
+            "max_tokens": self.max_tokens,
+            "messages": api_messages,
+        }
+        if system:
+            params["system"] = system
         if stop:
-            params["stop_sequences"] = stop
-
-        if self.streaming:
-            completion = ""
-            stream_resp = self.completion_with_retry(**params, stream=True)
-            for data in stream_resp:
-                delta = data.completion
-                completion += delta
-                if run_manager:
-                    run_manager.on_llm_new_token(
-                        delta,
-                    )
-        else:
-            response = self.completion_with_retry(**params)
+            params["stop_sequences"] = list(stop)
+        response = self.client.messages.create(**params)
         return self._create_chat_result(response)
 
-    def _create_chat_result(self, response: Mapping[str, Any]) -> ChatResult:
+    def _create_chat_result(self, response: Any) -> ChatResult:
         finish_reason = response.stop_reason
+        if finish_reason == "refusal":
+            details = getattr(response, "stop_details", None)
+            category = getattr(details, "category", None)
+            raise ClaudeRefusalError(
+                f"{response.model} declined the request (category: {category})"
+            )
         if finish_reason == "max_tokens":
             # for compatibility with OpenAI
             finish_reason = "length"
 
-        # Note: claude only returns one generation
+        # The response can also hold thinking blocks; only the text is the answer.
+        text = "".join(
+            block.text for block in response.content if block.type == "text"
+        )
         generations = [
             ChatGeneration(
-                message=AIMessage(content=response.completion),
-                generation_info=dict(
-                    finish_reason=finish_reason,
-                ),
+                message=AIMessage(content=text),
+                generation_info=dict(finish_reason=finish_reason),
             )
         ]
-        llm_output = {"model_name": response.model}
+        llm_output = {
+            "model_name": response.model,
+            "token_usage": {
+                "prompt_tokens": response.usage.input_tokens,
+                "completion_tokens": response.usage.output_tokens,
+            },
+        }
         return ChatResult(generations=generations, llm_output=llm_output)
 
 
@@ -260,23 +284,16 @@ def load_openai_llm(
 ) -> BaseLanguageModel:
     """Load the OpenAI language model and Claude and VLLM model"""
     # TODO: rename to load_llm
-    if model_name.startswith("claude"):  # claude-1
-        # TODO: set max_retry
-        kwargs_map = {
-            "request_timeout": "default_request_timeout",
-            "max_tokens": "max_tokens_to_sample",
-            "logit_bias": None,
-            "n": None,
-        }
+    if model_name.startswith("claude"):
+        supported = ("max_tokens", "max_retries", "request_timeout")
         new_kwargs = {}
         for k, v in kwargs.items():
-            if k in kwargs_map:
-                if kwargs_map[k] is not None and v is not None:
-                    new_kwargs[kwargs_map[k]] = v
-                else:
-                    print(f"Discard kwargs `{k}={v}` for {model_name}")
+            if k in supported:
+                if v is not None:
+                    new_kwargs[k] = v
             else:
-                new_kwargs[k] = v
+                # e.g. temperature: current Claude models reject sampling params
+                print(f"Discard kwargs `{k}={v}` for {model_name}")
         return ChatAnthropic(model=model_name, **new_kwargs)
     elif model_name == "text-davinci-003":
         return OpenAI(model_name=model_name, **kwargs)

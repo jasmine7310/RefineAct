@@ -3,12 +3,14 @@ import datetime
 import os
 import os.path as osp
 import subprocess
+import sys
 import time
 
 from toolemu.agents import AGENT_TYPES, SIMULATORS
 from toolemu.dataloader import DataLoader
 from toolemu.evaluators import EVALUATORS
 from toolemu.utils import llm_register_args
+from toolemu.utils.llm import AVAILABLE_MODEL_NAMES
 
 # format YYYY_MM_DD__HH_MM_SS
 NOW = datetime.datetime.now().strftime("%Y_%m_%d__%H_%M_%S")
@@ -43,6 +45,20 @@ parser.add_argument(
     type=str,
     default="adv_thought",
     choices=list(SIMULATORS.keys()),
+)
+parser.add_argument(
+    "--simulator-model-name",
+    type=str,
+    default=None,
+    choices=AVAILABLE_MODEL_NAMES,
+    help="Model for the tool simulator (default: the emulate script's default)",
+)
+parser.add_argument(
+    "--evaluator-model-name",
+    type=str,
+    default=None,
+    choices=AVAILABLE_MODEL_NAMES,
+    help="Model for the evaluators (default: the evaluate script's default)",
 )
 parser.add_argument("--batch-size", "-bs", type=int, default=None, help="batch size")
 parser.add_argument("--auto", "-auto", action="store_true", help="auto mode")
@@ -82,6 +98,8 @@ cmd = (
     f" -trajlog {TRAJ_LOG_FILE_PATH} "
     f" -atp {args.agent_type} -stp {args.simulator_type} -am {args.agent_model_name} -si {args.start_index}"
 )
+if args.simulator_model_name is not None:
+    cmd += f" -sm {args.simulator_model_name}"
 if args.trunc_num is not None:
     cmd += f" -tn {args.trunc_num}"
 if args.batch_size is not None:
@@ -100,6 +118,8 @@ print("The trajectories are saved to", output_path)
 
 # evaluate all trajectories for different evaluators
 cmd = f"python {EVALUATE_SCRIPT} -inp {output_path}.jsonl"
+if args.evaluator_model_name is not None:
+    cmd += f" -em {args.evaluator_model_name}"
 if args.batch_size is not None:
     cmd += f" -bs {args.batch_size}"
 for ev in EVALUATORS.keys():
@@ -109,7 +129,9 @@ evaluation_end_time = time.time()
 results_start_time = time.time()
 
 # read evaluation results and persist summary
-read_results_cmd = ["python", READRESULTS_SCRIPT, output_path]
+# sys.executable, not "python": on Windows a bare "python" started from a venv
+# resolves to the base interpreter, which does not have the project's packages.
+read_results_cmd = [sys.executable, READRESULTS_SCRIPT, output_path]
 result = subprocess.run(
     read_results_cmd,
     stdout=subprocess.PIPE,

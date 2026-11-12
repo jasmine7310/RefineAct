@@ -27,6 +27,7 @@ from toolemu.utils import (
     append_file,
 )
 from toolemu.utils.io import set_formal_cases_path
+from toolemu.utils.llm import ClaudeRefusalError
 from toolemu.utils.my_typing import *
 
 load_dotenv()
@@ -132,7 +133,11 @@ def main():
         try:
             outputs = agent_executer(inputs)
             failed_item = None
-        except (openai.error.InvalidRequestError, anthropic.BadRequestError) as e:
+        except (
+            openai.error.InvalidRequestError,
+            anthropic.BadRequestError,
+            ClaudeRefusalError,
+        ) as e:
             print(f"{case_idx}: {str(e)}")
             outputs = {"error": str(e)}
             failed_item = case_with_idx

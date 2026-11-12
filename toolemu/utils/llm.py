@@ -155,6 +155,24 @@ class ClaudeRefusalError(Exception):
     """Raised when the Claude API declines a request (stop_reason == "refusal")."""
 
 
+class LLMOutputFormatError(Exception):
+    """Raised when a model keeps returning output the pipeline cannot parse."""
+
+
+# How many times the agent or simulator is re-prompted to continue an output
+# that does not parse, before the case is failed instead of looping forever.
+MAX_FORMAT_RETRIES = 5
+
+
+def check_format_retries(retries: int, role: str, output: str) -> None:
+    """Raise once `role` has already been re-prompted MAX_FORMAT_RETRIES times."""
+    if retries >= MAX_FORMAT_RETRIES:
+        raise LLMOutputFormatError(
+            f"The {role} output could not be parsed after {MAX_FORMAT_RETRIES} "
+            f"retries. Output ends with: {output[-400:]!r}"
+        )
+
+
 # Default output cap for Claude. Thinking tokens count against it, so it is
 # deliberately higher than what the visible answer needs.
 CLAUDE_DEFAULT_MAX_TOKENS = 16000

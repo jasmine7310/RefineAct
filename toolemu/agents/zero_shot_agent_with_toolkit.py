@@ -32,7 +32,7 @@ from procoder.functional import (
 from toolemu.prompts.agent import *
 from toolemu.tools.tool_interface import BaseToolkit
 from toolemu.utils import get_first_json_object_str
-from toolemu.utils.llm import get_model_category
+from toolemu.utils.llm import check_format_retries, get_model_category
 from toolemu.utils.my_typing import *
 
 FINAL_ANSWER_ACTION = "Final Answer:"
@@ -180,7 +180,10 @@ class ZeroShotAgentWithToolkit(ZeroShotAgent):
         full_output = self.llm_chain.predict(**full_inputs)
         full_output = self._fix_text(full_output)
         parsed_output = self._extract_tool_and_input(full_output)
+        retries = 0
         while parsed_output is None:
+            check_format_retries(retries, "agent", full_output)
+            retries += 1
             full_output = self._fix_text(full_output)
             full_inputs["agent_scratchpad"] += full_output
             output = self.llm_chain.predict(**full_inputs)
@@ -193,7 +196,10 @@ class ZeroShotAgentWithToolkit(ZeroShotAgent):
     async def _aget_next_action(self, full_inputs: Dict[str, str]) -> AgentAction:
         full_output = await self.llm_chain.apredict(**full_inputs)
         parsed_output = self._extract_tool_and_input(full_output)
+        retries = 0
         while parsed_output is None:
+            check_format_retries(retries, "agent", full_output)
+            retries += 1
             full_output = self._fix_text(full_output)
             full_inputs["agent_scratchpad"] += full_output
             output = await self.llm_chain.apredict(**full_inputs)

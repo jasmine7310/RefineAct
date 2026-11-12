@@ -25,6 +25,20 @@ pip install -e .
 echo "OPENAI_API_KEY=<your-key>" > .env
 ```
 
+## Configuration
+
+Models are chosen with environment variables (or a `.env` file; see `.env.example`).
+
+| Variable | Meaning |
+| --- | --- |
+| `REFINEACT_PROVIDER` | `openai` (any OpenAI-compatible endpoint) or `anthropic`. Default: `anthropic` for names starting with `claude`, otherwise `openai`. |
+| `REFINEACT_MODEL` | Model name, passed to the endpoint unchanged. |
+| `REFINEACT_API_KEY`, `REFINEACT_BASE_URL` | Key and endpoint. Fall back to `OPENAI_API_KEY`/`OPENAI_API_BASE` or `ANTHROPIC_API_KEY`/`ANTHROPIC_BASE_URL`. |
+| `REFINEACT_TEMPERATURE` | Number, or `none` to leave it out of the request. Ignored by the `anthropic` provider. |
+| `REFINEACT_MAX_TOKENS`, `REFINEACT_MAX_RETRIES`, `REFINEACT_REQUEST_TIMEOUT` | Request limits. |
+
+Insert `AGENT`, `SIMULATOR` or `EVALUATOR` after `REFINEACT_` (for example `REFINEACT_EVALUATOR_MODEL`) to override one role. Command-line flags such as `--agent-model-name` override the environment, and `./run_<domain>.sh --model NAME` sets all three roles at once.
+
 ## Running Experiments
 
 Each domain has a dedicated runner script that executes the full pipeline (emulation → evaluation → results summary) on its formal test cases.

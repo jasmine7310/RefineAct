@@ -10,7 +10,7 @@ from toolemu.agents import AGENT_TYPES, SIMULATORS
 from toolemu.dataloader import DataLoader
 from toolemu.evaluators import EVALUATORS
 from toolemu.utils import llm_register_args
-from toolemu.utils.llm import AVAILABLE_MODEL_NAMES
+from toolemu.utils.llm import model_file_tag
 
 # format YYYY_MM_DD__HH_MM_SS
 NOW = datetime.datetime.now().strftime("%Y_%m_%d__%H_%M_%S")
@@ -50,14 +50,12 @@ parser.add_argument(
     "--simulator-model-name",
     type=str,
     default=None,
-    choices=AVAILABLE_MODEL_NAMES,
     help="Model for the tool simulator (default: the emulate script's default)",
 )
 parser.add_argument(
     "--evaluator-model-name",
     type=str,
     default=None,
-    choices=AVAILABLE_MODEL_NAMES,
     help="Model for the evaluators (default: the evaluate script's default)",
 )
 parser.add_argument("--batch-size", "-bs", type=int, default=None, help="batch size")
@@ -112,7 +110,7 @@ evaluation_start_time = time.time()
 
 output_path = os.path.join(
     args.dump_dir,
-    f"traj_sim_{args.simulator_type}_agent_{args.agent_model_name}_{args.agent_type}_{NOW}",
+    f"traj_sim_{args.simulator_type}_agent_{model_file_tag(args.agent_model_name)}_{args.agent_type}_{NOW}",
 )
 print("The trajectories are saved to", output_path)
 

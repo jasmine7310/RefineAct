@@ -1,4 +1,5 @@
 import logging
+import os
 
 from langchain.base_language import BaseLanguageModel
 from langchain.callbacks.manager import (
@@ -54,17 +55,47 @@ MODEL_NAMES = set(MODEL_BASE_NAMES)
 for base_name in MODEL_BASE_NAMES:
     for version in FIXED_VERSIONS.get(base_name, []):
         MODEL_NAMES.add(f"{base_name}-{version}")
-# can be model_names or model_short_names
-AVAILABLE_MODEL_NAMES = list(MODEL_NAMES | set(MODEL_SHORT_NAMES))
+
+
+ENV_PREFIX = "REFINEACT"
+PROVIDERS = ("openai", "anthropic")
+
+
+def role_env(role: str, name: str, inherit: bool = True) -> Optional[str]:
+    """Read REFINEACT_<ROLE>_<NAME>, then REFINEACT_<NAME>; blank means unset."""
+    keys = [f"{ENV_PREFIX}_{role.upper()}_{name}"] if role else []
+    if inherit or not role:
+        keys.append(f"{ENV_PREFIX}_{name}")
+    values = (os.environ.get(k, "").strip() for k in keys)
+    return next((v for v in values if v), None)
+
+
+def parse_temperature(text: str) -> Optional[float]:
+    """`none` means do not send a temperature at all."""
+    return None if text.strip().lower() == "none" else float(text)
+
+
+def env_or(role: str, name: str, convert: Callable, default: Any) -> Any:
+    value = role_env(role, name)
+    return default if value is None else convert(value)
 
 
 def llm_register_args(parser, prefix=None, shortprefix=None, defaults={}):
-    model_name = defaults.get("model_name", "gpt-4o-mini-2024-07-18")
-    temperature = defaults.get("temperature", 0.0)
-    max_tokens = defaults.get("max_tokens", None)
-    default_retries = 8 if model_name.startswith("claude") else 12
-    max_retries = defaults.get("max_retries", default_retries)
-    request_timeout = defaults.get("request_timeout", 300)
+    role = prefix or ""
+    model_name = env_or(
+        role, "MODEL", str, defaults.get("model_name", "gpt-4o-mini-2024-07-18")
+    )
+    temperature = env_or(
+        role, "TEMPERATURE", parse_temperature, defaults.get("temperature", 0.0)
+    )
+    max_tokens = env_or(role, "MAX_TOKENS", int, defaults.get("max_tokens", None))
+    default_retries = 8 if resolve_provider(role, model_name) == "anthropic" else 12
+    max_retries = env_or(
+        role, "MAX_RETRIES", int, defaults.get("max_retries", default_retries)
+    )
+    request_timeout = env_or(
+        role, "REQUEST_TIMEOUT", int, defaults.get("request_timeout", 300)
+    )
     if prefix is None:
         prefix = ""
         shortprefix = ""
@@ -76,8 +107,7 @@ def llm_register_args(parser, prefix=None, shortprefix=None, defaults={}):
         f"-{shortprefix}m",
         type=str,
         default=model_name,
-        choices=AVAILABLE_MODEL_NAMES,
-        help=f"Model name, one of: {AVAILABLE_MODEL_NAMES}",
+        help="Model name, sent to the provider as-is.",
     )
     parser.add_argument(
         f"--{prefix}temperature",
@@ -109,6 +139,23 @@ def llm_register_args(parser, prefix=None, shortprefix=None, defaults={}):
     )
 
 
+def infer_provider(model_name: str) -> str:
+    return "anthropic" if model_name.startswith("claude") else "openai"
+
+
+def resolve_provider(role: str, model_name: str) -> str:
+    """REFINEACT_[<ROLE>_]PROVIDER if set, else guessed from the model name."""
+    provider = role_env(role, "PROVIDER") or infer_provider(model_name)
+    if provider not in PROVIDERS:
+        raise ValueError(f"Provider must be one of {PROVIDERS}, got: {provider}")
+    return provider
+
+
+def model_file_tag(model_name: str) -> str:
+    """Model name made safe to embed in an output file name."""
+    return model_name.replace("/", "_").replace(":", "_")
+
+
 def get_model_name(name, fixed_version=True, version=None):
     model_name = None
     if name in MODEL_NAMES_MAPPING:
@@ -116,7 +163,7 @@ def get_model_name(name, fixed_version=True, version=None):
     elif name in MODEL_NAMES:
         model_name = name
     if model_name is None:
-        raise ValueError(f"Invalid model name: {name}")
+        return name
 
     if fixed_version:
         if version is None and model_name in FIXED_VERSIONS:
@@ -133,6 +180,15 @@ def get_fixed_model_name(name):
 
 
 class ChatOpenAI(LangchainChatOpenAI):
+    temperature: Optional[float] = 0.7  # None: do not send a temperature
+
+    @property
+    def _default_params(self) -> Dict[str, Any]:
+        params = super()._default_params
+        if self.temperature is None:
+            params.pop("temperature", None)
+        return params
+
     def _create_chat_result(self, response: Mapping[str, Any]) -> ChatResult:
         generations = []
         for res in response["choices"]:
@@ -191,6 +247,9 @@ class ChatAnthropic(BaseChatModel):
     max_retries: int = 6
     """Retries for rate limits, timeouts and server errors (handled by the SDK)."""
     request_timeout: Optional[float] = None
+    api_key: Optional[str] = None
+    base_url: Optional[str] = None
+    """Both default to the SDK's own ANTHROPIC_API_KEY / ANTHROPIC_BASE_URL."""
     streaming: bool = False
     """Kept for interface compatibility with ChatOpenAI; streaming is not used."""
 
@@ -202,8 +261,9 @@ class ChatAnthropic(BaseChatModel):
             client_kwargs: Dict[str, Any] = {"max_retries": values["max_retries"]}
             if values.get("request_timeout") is not None:
                 client_kwargs["timeout"] = values["request_timeout"]
-            # Credentials are resolved by the SDK (ANTHROPIC_API_KEY, typically
-            # loaded from the project's .env file).
+            for key in ("api_key", "base_url"):
+                if values.get(key) is not None:
+                    client_kwargs[key] = values[key]
             values["client"] = anthropic.Anthropic(**client_kwargs)
         return values
 
@@ -265,9 +325,7 @@ class ChatAnthropic(BaseChatModel):
             finish_reason = "length"
 
         # The response can also hold thinking blocks; only the text is the answer.
-        text = "".join(
-            block.text for block in response.content if block.type == "text"
-        )
+        text = "".join(block.text for block in response.content if block.type == "text")
         generations = [
             ChatGeneration(
                 message=AIMessage(content=text),
@@ -298,21 +356,28 @@ def parse_llm_response(
 
 
 def load_openai_llm(
-    model_name: str = "text-davinci-003", **kwargs
+    model_name: str = "text-davinci-003",
+    provider: Optional[str] = None,
+    api_key: Optional[str] = None,
+    base_url: Optional[str] = None,
+    **kwargs,
 ) -> BaseLanguageModel:
-    """Load the OpenAI language model and Claude and VLLM model"""
+    """Load an OpenAI-compatible, Anthropic or VLLM model."""
     # TODO: rename to load_llm
-    if model_name.startswith("claude"):
+    provider = provider or infer_provider(model_name)
+    if provider == "anthropic":
         supported = ("max_tokens", "max_retries", "request_timeout")
         new_kwargs = {}
         for k, v in kwargs.items():
             if k in supported:
                 if v is not None:
                     new_kwargs[k] = v
-            else:
+            elif v is not None:
                 # e.g. temperature: current Claude models reject sampling params
                 print(f"Discard kwargs `{k}={v}` for {model_name}")
-        return ChatAnthropic(model=model_name, **new_kwargs)
+        return ChatAnthropic(
+            model=model_name, api_key=api_key, base_url=base_url, **new_kwargs
+        )
     elif model_name == "text-davinci-003":
         return OpenAI(model_name=model_name, **kwargs)
     elif "vicuna" in model_name:
@@ -322,28 +387,33 @@ def load_openai_llm(
             max_num_batched_tokens=16000,
             **kwargs,
         )
-    elif model_name in MODEL_NAMES:
-        return ChatOpenAI(model_name=model_name, **kwargs)
-    else:
-        raise ValueError(f"Unknown model name: {model_name}")
+    return ChatOpenAI(
+        model_name=model_name,
+        openai_api_key=api_key,
+        openai_api_base=base_url,
+        **kwargs,
+    )
 
 
 def load_openai_llm_with_args(args, prefix=None, fixed_version=True, **kwargs):
-    if prefix is None:
-        prefix = ""
-    else:
-        prefix += "_"
-    model_name = getattr(args, f"{prefix}model_name")
-    temperature = getattr(args, f"{prefix}temperature")
-    max_tokens = getattr(args, f"{prefix}max_tokens")
-    max_retries = getattr(args, f"{prefix}max_retries")
-    request_timeout = getattr(args, f"{prefix}request_timeout")
+    role = prefix or ""
+    prefix = f"{prefix}_" if prefix else ""
+    model_name = get_model_name(
+        getattr(args, f"{prefix}model_name"), fixed_version=fixed_version
+    )
+    provider = resolve_provider(role, model_name)
+    # A role on a different provider than the global one must not reuse the
+    # global key or URL, which belong to the global provider.
+    inherit = provider == resolve_provider("", model_name)
     return load_openai_llm(
-        model_name=get_model_name(model_name, fixed_version=fixed_version),
-        temperature=temperature,
-        max_tokens=max_tokens,
-        max_retries=max_retries,
-        request_timeout=request_timeout,
+        model_name=model_name,
+        provider=provider,
+        api_key=role_env(role, "API_KEY", inherit),
+        base_url=role_env(role, "BASE_URL", inherit),
+        temperature=getattr(args, f"{prefix}temperature"),
+        max_tokens=getattr(args, f"{prefix}max_tokens"),
+        max_retries=getattr(args, f"{prefix}max_retries"),
+        request_timeout=getattr(args, f"{prefix}request_timeout"),
         **kwargs,
     )
 

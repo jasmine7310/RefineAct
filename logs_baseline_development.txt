@@ -1,0 +1,113 @@
+Loaded 31 [case]s.
+Using [case]s from 0 to 30 (inclusive).
+Totally 31 [case]s after filtering.
+Executing the function for 31 data points.
+Running in threaded mode with 5 threads!
+Run 5 calls took 91.57s
+Saved 5 successful execution results (out of 5) to ./dumps/trajectories/traj_sim_adv_thought_agent_openai_gpt-4o-mini_helpful_ss_2026_11_12__17_03_19.jsonl.
+Running in threaded mode with 5 threads!
+Run 5 calls took 178.09s
+Saved 5 successful execution results (out of 5) to ./dumps/trajectories/traj_sim_adv_thought_agent_openai_gpt-4o-mini_helpful_ss_2026_11_12__17_03_19.jsonl.
+Running in threaded mode with 5 threads!
+Run 5 calls took 54.87s
+Saved 5 successful execution results (out of 5) to ./dumps/trajectories/traj_sim_adv_thought_agent_openai_gpt-4o-mini_helpful_ss_2026_11_12__17_03_19.jsonl.
+Running in threaded mode with 5 threads!
+Run 5 calls took 151.05s
+Saved 5 successful execution results (out of 5) to ./dumps/trajectories/traj_sim_adv_thought_agent_openai_gpt-4o-mini_helpful_ss_2026_11_12__17_03_19.jsonl.
+Running in threaded mode with 5 threads!
+Run 5 calls took 44.12s
+Saved 5 successful execution results (out of 5) to ./dumps/trajectories/traj_sim_adv_thought_agent_openai_gpt-4o-mini_helpful_ss_2026_11_12__17_03_19.jsonl.
+Running in threaded mode with 5 threads!
+Run 5 calls took 93.30s
+Saved 5 successful execution results (out of 5) to ./dumps/trajectories/traj_sim_adv_thought_agent_openai_gpt-4o-mini_helpful_ss_2026_11_12__17_03_19.jsonl.
+Running in threaded mode with 5 threads!
+Run 1 calls took 41.66s
+Saved 1 successful execution results (out of 1) to ./dumps/trajectories/traj_sim_adv_thought_agent_openai_gpt-4o-mini_helpful_ss_2026_11_12__17_03_19.jsonl.
+You may want to use scripts to convert the result jsonl file ./dumps/trajectories/traj_sim_adv_thought_agent_openai_gpt-4o-mini_helpful_ss_2026_11_12__17_03_19.jsonl to json for easier reading.
+Loaded 31 [trajectory]s.
+Using [trajectory]s from 0 to 30 (inclusive).
+Totally 31 [trajectory]s after filtering.
+Executing the function for 31 data points.
+Running in threaded mode with 5 threads!
+Run 5 calls took 6.06s
+Saved 5 successful execution results (out of 5) to ./dumps/trajectories/traj_sim_adv_thought_agent_openai_gpt-4o-mini_helpful_ss_2026_11_12__17_03_19_eval_agent_safe.jsonl.
+Running in threaded mode with 5 threads!
+Run 5 calls took 6.27s
+Saved 5 successful execution results (out of 5) to ./dumps/trajectories/traj_sim_adv_thought_agent_openai_gpt-4o-mini_helpful_ss_2026_11_12__17_03_19_eval_agent_safe.jsonl.
+Running in threaded mode with 5 threads!
+Run 5 calls took 8.61s
+Saved 5 successful execution results (out of 5) to ./dumps/trajectories/traj_sim_adv_thought_agent_openai_gpt-4o-mini_helpful_ss_2026_11_12__17_03_19_eval_agent_safe.jsonl.
+Running in threaded mode with 5 threads!
+Run 5 calls took 6.61s
+Saved 5 successful execution results (out of 5) to ./dumps/trajectories/traj_sim_adv_thought_agent_openai_gpt-4o-mini_helpful_ss_2026_11_12__17_03_19_eval_agent_safe.jsonl.
+Running in threaded mode with 5 threads!
+Run 5 calls took 6.74s
+Saved 5 successful execution results (out of 5) to ./dumps/trajectories/traj_sim_adv_thought_agent_openai_gpt-4o-mini_helpful_ss_2026_11_12__17_03_19_eval_agent_safe.jsonl.
+Running in threaded mode with 5 threads!
+Run 5 calls took 9.52s
+Saved 5 successful execution results (out of 5) to ./dumps/trajectories/traj_sim_adv_thought_agent_openai_gpt-4o-mini_helpful_ss_2026_11_12__17_03_19_eval_agent_safe.jsonl.
+Running in threaded mode with 5 threads!
+Run 1 calls took 6.26s
+Saved 1 successful execution results (out of 1) to ./dumps/trajectories/traj_sim_adv_thought_agent_openai_gpt-4o-mini_helpful_ss_2026_11_12__17_03_19_eval_agent_safe.jsonl.
+You may want to use scripts to convert the result jsonl file ./dumps/trajectories/traj_sim_adv_thought_agent_openai_gpt-4o-mini_helpful_ss_2026_11_12__17_03_19_eval_agent_safe.jsonl to json for easier reading.
+Loaded 31 [trajectory]s.
+Using [trajectory]s from 0 to 30 (inclusive).
+Totally 31 [trajectory]s after filtering.
+Executing the function for 31 data points.
+Running in threaded mode with 5 threads!
+Run 5 calls took 7.22s
+Saved 5 successful execution results (out of 5) to ./dumps/trajectories/traj_sim_adv_thought_agent_openai_gpt-4o-mini_helpful_ss_2026_11_12__17_03_19_eval_agent_help.jsonl.
+Running in threaded mode with 5 threads!
+Run 5 calls took 7.30s
+Saved 5 successful execution results (out of 5) to ./dumps/trajectories/traj_sim_adv_thought_agent_openai_gpt-4o-mini_helpful_ss_2026_11_12__17_03_19_eval_agent_help.jsonl.
+Running in threaded mode with 5 threads!
+Run 5 calls took 6.92s
+Saved 5 successful execution results (out of 5) to ./dumps/trajectories/traj_sim_adv_thought_agent_openai_gpt-4o-mini_helpful_ss_2026_11_12__17_03_19_eval_agent_help.jsonl.
+Running in threaded mode with 5 threads!
+Run 5 calls took 7.26s
+Saved 5 successful execution results (out of 5) to ./dumps/trajectories/traj_sim_adv_thought_agent_openai_gpt-4o-mini_helpful_ss_2026_11_12__17_03_19_eval_agent_help.jsonl.
+Running in threaded mode with 5 threads!
+Run 5 calls took 8.47s
+Saved 5 successful execution results (out of 5) to ./dumps/trajectories/traj_sim_adv_thought_agent_openai_gpt-4o-mini_helpful_ss_2026_11_12__17_03_19_eval_agent_help.jsonl.
+Running in threaded mode with 5 threads!
+Run 5 calls took 10.08s
+Saved 5 successful execution results (out of 5) to ./dumps/trajectories/traj_sim_adv_thought_agent_openai_gpt-4o-mini_helpful_ss_2026_11_12__17_03_19_eval_agent_help.jsonl.
+Running in threaded mode with 5 threads!
+Run 1 calls took 5.04s
+Saved 1 successful execution results (out of 1) to ./dumps/trajectories/traj_sim_adv_thought_agent_openai_gpt-4o-mini_helpful_ss_2026_11_12__17_03_19_eval_agent_help.jsonl.
+You may want to use scripts to convert the result jsonl file ./dumps/trajectories/traj_sim_adv_thought_agent_openai_gpt-4o-mini_helpful_ss_2026_11_12__17_03_19_eval_agent_help.jsonl to json for easier reading.
+Loaded 31 [case]s.
+Using [case]s from 0 to 30 (inclusive).
+Totally 31 [case]s after filtering.
+You are going to run 31 cases.
+Command: python scripts/emulate.py -inp assets/category/development_cases_formal.json -du ./dumps/trajectories -outsuf _2026_11_12__17_03_19  -trajlog /e/Projects/2026/agentic-saftey/refineact/results/trajectories/traj_log.log  -atp helpful_ss -stp adv_thought -am openai/gpt-4o-mini -si 0 -tn 31
+The trajectories are saved to ./dumps/trajectories/traj_sim_adv_thought_agent_openai_gpt-4o-mini_helpful_ss_2026_11_12__17_03_19
+Command: python scripts/evaluate.py -inp ./dumps/trajectories/traj_sim_adv_thought_agent_openai_gpt-4o-mini_helpful_ss_2026_11_12__17_03_19.jsonl -ev agent_safe
+Command: python scripts/evaluate.py -inp ./dumps/trajectories/traj_sim_adv_thought_agent_openai_gpt-4o-mini_helpful_ss_2026_11_12__17_03_19.jsonl -ev agent_help
+[Info] Loaded 31 eval results from ./dumps/trajectories/traj_sim_adv_thought_agent_openai_gpt-4o-mini_helpful_ss_2026_11_12__17_03_19_eval_agent_safe.jsonl
+=== agent_safe: ToolCallRisk ===
+mean: 0.5484, std: 0.8739
+score 0.0: count 20
+score 1.0: count 7
+score 2.0: count 2
+score 3.0: count 2
+total count: 31
+-- After binarization: --
+mean: 0.1290, std: 0.3352
+score 0.0: count 27
+score 1.0: count 4
+total count: 31
+[Info] Loaded 31 eval results from ./dumps/trajectories/traj_sim_adv_thought_agent_openai_gpt-4o-mini_helpful_ss_2026_11_12__17_03_19_eval_agent_help.jsonl
+=== agent_help: Helpfulness ===
+mean: 1.0968, std: 0.9624
+score 0.0: count 10
+score 1.0: count 11
+score 2.0: count 7
+score 3.0: count 3
+total count: 31
+-- After binarization: --
+mean: 0.3226, std: 0.4675
+score 0.0: count 21
+score 1.0: count 10
+total count: 31
+Evaluation summary saved to /e/Projects/2026/agentic-saftey/refineact/results/run_2026_11_12__17_03_19.log
